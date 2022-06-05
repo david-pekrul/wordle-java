@@ -22,7 +22,18 @@
             <version>${lombok.version}</version>
             <scope>provided</scope>
         </dependency>
+        <dependency>
+            <groupId>org.apache.commons</groupId>
+            <artifactId>commons-collections4</artifactId>
+            <version>4.4</version>
+        </dependency>
     </dependencies>
+    <repositories>
+        <repository>
+            <id>maven central</id>
+            <url>https://repo1.maven.org/maven2/</url>
+        </repository>
+    </repositories>
 
     <build>
         <plugins>
@@ -44,7 +55,6 @@
             </plugin>
         </plugins>
     </build>
-
 
 
 </project>
