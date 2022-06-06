@@ -2,7 +2,11 @@ package org.pekrul.wordle;
 
 import lombok.Getter;
 
-import java.util.*;
+import java.util.ArrayList;
+import java.util.HashSet;
+import java.util.List;
+import java.util.Set;
+import java.util.stream.Stream;
 
 public class WordleGame {
 
@@ -14,14 +18,17 @@ public class WordleGame {
     @Getter
     List<Turn> turns;
 
+    private final WordleData data;
+
     @Getter
     private boolean solved;
 
     private Set<String> possibleSolutionSet = new HashSet<>(50);
 
-    public WordleGame(String answer, String startingWord) {
+    public WordleGame(WordleData data, String answer, String startingWord) {
         this.startingWord = startingWord;
         this.answer = answer;
+        this.data = data;
         turns = new ArrayList<>(6);
     }
 
@@ -52,10 +59,12 @@ public class WordleGame {
 
         /* Find the set of words that match the pattern from all previous guesses */
         if (turns.size() == 1) {
-            possibleSolutionSet.addAll(Wordle.trieGuessLookup.get(previousTurn.getTurnGuess()).get(previousTurn.getResultString()).keySet());
+            possibleSolutionSet.addAll(data.getPossibleAnswers(previousTurn));
         } else {
-            possibleSolutionSet.retainAll(Wordle.trieGuessLookup.get(previousTurn.getTurnGuess()).get(previousTurn.getResultString()).keySet());
+            possibleSolutionSet.retainAll(data.getPossibleAnswers(previousTurn));
         }
+
+
 
         String nextGuess = possibleSolutionSet.stream().unordered()
                 .filter(word -> {
@@ -71,7 +80,8 @@ public class WordleGame {
                         }
                     }
                     return true;
-                }).findAny().get();
+                })
+                .findAny().get(); //Note: if I want to run through EVERY game, this would change to a Collector.Set
         return nextGuess;
     }
 
