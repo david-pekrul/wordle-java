@@ -1,6 +1,8 @@
 package org.pekrul.wordle;
 
 import org.javatuples.Pair;
+import org.pekrul.wordle.data.WordleData;
+import org.pekrul.wordle.data.WordleDataMap;
 
 import java.io.IOException;
 import java.text.DecimalFormat;
@@ -18,7 +20,8 @@ public class WordleMain {
     }
 
     public void run() throws IOException {
-        WordleData wordleData = WordleData.getInstance();
+        //WordleData wordleData = WordleDataTrie.getInstance();
+        WordleData wordleData = WordleDataMap.getInstance(); //Map seems faster now.
 
         startingWordToAnswerToSolveCount = new ConcurrentHashMap<>(wordleData.getAllWords().size());
 

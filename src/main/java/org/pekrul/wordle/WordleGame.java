@@ -1,12 +1,12 @@
 package org.pekrul.wordle;
 
 import lombok.Getter;
+import org.pekrul.wordle.data.WordleData;
 
 import java.util.ArrayList;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
-import java.util.stream.Stream;
 
 public class WordleGame {
 
