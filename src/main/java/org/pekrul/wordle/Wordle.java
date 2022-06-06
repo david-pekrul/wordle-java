@@ -1,14 +1,17 @@
 package org.pekrul.wordle;
 
+import org.apache.commons.collections4.Trie;
+import org.apache.commons.collections4.trie.PatriciaTrie;
+import org.javatuples.Pair;
+
 import java.io.*;
-import java.sql.Time;
 import java.text.DecimalFormat;
 import java.time.LocalDateTime;
 import java.util.*;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicLong;
-import java.util.logging.Logger;
+import java.util.stream.Collectors;
 
 public class Wordle {
 
@@ -19,15 +22,13 @@ public class Wordle {
 
     static Map<String, Map<String, Integer>> startingWordToAnswerToSolveCount;
 
+    static Trie<String, Trie<String, Trie<String, Boolean>>> trieGuessLookup;
+
 
     public static void main(String[] args) throws IOException {
 
         initAllWords();
         initAnswerWords();
-
-        /* TEST */
-        Turn testTurn = new Turn("AUDIT");
-        testTurn = testTurn.applyGuess("AGENT");
 
         /* SANITY CHECK */
         for (String answer : allAnswers) {
@@ -36,21 +37,16 @@ public class Wordle {
             }
         }
 
-        initWordLookups();
+//        initMapLookups();
+        initTrieLookup();
         startingWordToAnswerToSolveCount = new ConcurrentHashMap<>(allWords.size());
-
-
-
-        /* TEST */
-        WordleGame testGame = new WordleGame("APART", "TASTY");
-        testGame.playGame();
-        System.out.println(testGame);
 
 
         /* FULL */
         long start = System.currentTimeMillis();
         LocalDateTime gamesStart = LocalDateTime.now();
         long totalGames = 1l * allAnswers.size() * allWords.size();
+        int percent = (int)Math.round(totalGames * 0.01);
         final DecimalFormat df = new DecimalFormat("0.00");
 
         AtomicLong gamesPlayed = new AtomicLong();
@@ -58,10 +54,10 @@ public class Wordle {
             allWords.stream().parallel().forEach(startingWord -> {
                 WordleGame wordleGame = new WordleGame(answer, startingWord);
                 wordleGame.playGame();
-//                System.out.println(wordleGame);
                 gamesPlayed.getAndIncrement();
-                if (gamesPlayed.get() % 1000 == 0) {
+                if (gamesPlayed.get() % percent == 0) {
                     double progress = 100 * (gamesPlayed.get() / (1.0 * totalGames));
+//                    System.out.println(wordleGame);
                     System.out.println("Games Played: " + gamesPlayed.get() + "/" + totalGames + "\t\t" + df.format(progress));
                 }
                 startingWordToAnswerToSolveCount.compute(startingWord, (k1, v1) -> {
@@ -72,7 +68,7 @@ public class Wordle {
                         if (wordleGame.isSolved()) {
                             return wordleGame.turns.size();
                         } else {
-                            return 30;
+                            return Integer.MAX_VALUE;
                         }
                     });
                     return v1;
@@ -85,6 +81,8 @@ public class Wordle {
         System.out.println("Done");
         System.out.println("Games Played: " + gamesPlayed.get());
         System.out.println("Game time: " + df.format((end - start) / 1000.0));
+
+        runStats();
     }
 
     private static void initAllWords() throws IOException {
@@ -118,17 +116,16 @@ public class Wordle {
         allAnswers = Collections.unmodifiableSet(allAnswers);
     }
 
-    private static void initWordLookups() {
+    private static void initMapLookups() {
         AtomicInteger answersDone = new AtomicInteger();
         Object mutex = new Object();
-        Object mutex2 = new Object();
         guessToResultsToWords = new HashMap<>(allWords.size());
         allWords.stream().parallel().forEach(guess -> {
-            Map<String, Set<String>> resultToWordsPerAnswer = new HashMap<>();
+            Map<String, Set<String>> resultToAnswersPerGuess = new HashMap<>();
             allAnswers.stream().forEach(answer -> {
                 Turn turn = new Turn(answer);
                 Turn generatedTurn = turn.applyGuess(guess);
-                resultToWordsPerAnswer.compute(generatedTurn.getResultString(), (k, v) -> {
+                resultToAnswersPerGuess.compute(generatedTurn.getResultString(), (k, v) -> {
                     if (v == null) {
                         v = new HashSet<>();
                     }
@@ -140,7 +137,7 @@ public class Wordle {
             //put the guess into the larger data set
             //guess -> resultToWordsPerAnswer
             synchronized (mutex) {
-                guessToResultsToWords.put(guess, Collections.unmodifiableMap(resultToWordsPerAnswer));
+                guessToResultsToWords.put(guess, Collections.unmodifiableMap(resultToAnswersPerGuess));
             }
 
             answersDone.getAndIncrement();
@@ -149,5 +146,61 @@ public class Wordle {
             }
         });
         guessToResultsToWords = Collections.unmodifiableMap(guessToResultsToWords);
+    }
+
+
+    private static void runStats() {
+        startingWordToAnswerToSolveCount.entrySet().stream()
+                .map(x -> {
+                    return new Pair<>(x.getKey(), getAverage(x.getValue()));
+                })
+                .sorted((a, b) -> {
+                    return Double.compare(a.getValue1(),b.getValue1());
+                })
+                .limit(10)
+                .forEach(x -> {
+                    System.out.println(x.getValue0() + ":\t" + x.getValue1());
+                });
+    }
+
+    private static double getAverage(Map<String, Integer> input) {
+        return input.entrySet().stream().map(x -> {
+            return (long) x.getValue();
+        }).reduce(0l, Long::sum) / (1.0 * input.size());
+    }
+
+    private static void initTrieLookup() {
+        trieGuessLookup = new PatriciaTrie<>();
+
+        AtomicInteger answersDone = new AtomicInteger();
+        Object mutex = new Object();
+        allWords.stream().parallel().forEach(guess -> {
+
+            Trie<String, Trie<String, Boolean>> resultToAnswersPerGuess = new PatriciaTrie<>();
+            allAnswers.stream().forEach(answer -> {
+                Turn turn = new Turn(answer);
+                Turn generatedTurn = turn.applyGuess(guess);
+                resultToAnswersPerGuess.compute(generatedTurn.getResultString(), (k, v) -> {
+                    if (v == null) {
+                        v = new PatriciaTrie<>();
+                    }
+                    v.put(answer, true);
+                    return v;
+                });
+            });
+
+            //put the guess into the larger data set
+            //guess -> resultToWordsPerAnswer
+            synchronized (mutex) {
+                trieGuessLookup.put(guess, resultToAnswersPerGuess);
+            }
+
+            answersDone.getAndIncrement();
+            if (answersDone.get() % 100 == 0) {
+                System.out.println(answersDone.get());
+            }
+        });
+
+        System.out.println("Done Trie init");
     }
 }
