@@ -46,7 +46,7 @@ public class WordleMain {
                     }
                     v1.compute(answer, (k2, v2) -> {
                         if (wordleGame.isSolved()) {
-                            return wordleGame.turns.size();
+                            return wordleGame.getTurns().size();
                         } else {
                             return Integer.MAX_VALUE;
                         }

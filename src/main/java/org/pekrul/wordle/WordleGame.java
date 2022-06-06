@@ -16,7 +16,7 @@ public class WordleGame {
     private final String startingWord;
     private final String answer;
     @Getter
-    List<Turn> turns;
+    private List<Turn> turns;
 
     private final WordleData data;
 
@@ -29,7 +29,7 @@ public class WordleGame {
         this.startingWord = startingWord;
         this.answer = answer;
         this.data = data;
-        turns = new ArrayList<>(6);
+        turns = new ArrayList<>(MAX_TURNS);
     }
 
     public void playGame() {
@@ -63,7 +63,6 @@ public class WordleGame {
         } else {
             possibleSolutionSet.retainAll(data.getPossibleAnswers(previousTurn));
         }
-
 
 
         String nextGuess = possibleSolutionSet.stream().unordered()
