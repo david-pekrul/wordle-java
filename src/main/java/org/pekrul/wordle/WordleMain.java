@@ -14,7 +14,7 @@ import java.util.concurrent.atomic.AtomicLong;
 
 public class WordleMain {
 
-    private Map<String, Map<String, Integer>> startingWordToAnswerToSolveCount;
+    private Map<Integer, Map<Integer, Integer>> startingWordToAnswerToSolveCount;
 
     public WordleMain() {
     }
@@ -23,19 +23,19 @@ public class WordleMain {
         //WordleData wordleData = WordleDataTrie.getInstance();
         WordleData wordleData = WordleDataMap.getInstance(); //Map seems faster now.
 
-        startingWordToAnswerToSolveCount = new ConcurrentHashMap<>(wordleData.getAllWords().size());
+        startingWordToAnswerToSolveCount = new ConcurrentHashMap<>(wordleData.getAllWordsSize());
 
         /* FULL */
         long start = System.currentTimeMillis();
         LocalDateTime gamesStart = LocalDateTime.now();
-        long totalGames = 1l * wordleData.getAllAnswers().size() * wordleData.getAllWords().size();
+        long totalGames = 1l * wordleData.getAllAnswerSize() * wordleData.getAllWordsSize();
         int percent = (int) Math.round(totalGames * 0.01);
         final DecimalFormat df = new DecimalFormat("0.00");
 
         AtomicLong gamesPlayed = new AtomicLong();
-        wordleData.getAllAnswers().stream().forEach(answer -> {
-            wordleData.getAllWords().stream().parallel().forEach(startingWord -> {
-                WordleGame wordleGame = new WordleGame(wordleData, answer, startingWord);
+        wordleData.getAllAnswers().stream().forEach(answerId -> {
+            wordleData.getAllIdsToWords().keySet().stream().parallel().forEach(startingWordId -> {
+                WordleGame wordleGame = new WordleGame(wordleData, answerId, startingWordId);
                 wordleGame.playGame();
                 gamesPlayed.getAndIncrement();
                 if (gamesPlayed.get() % percent == 0) {
@@ -43,11 +43,11 @@ public class WordleMain {
 //                    System.out.println(wordleGame);
                     System.out.println("Games Played: " + gamesPlayed.get() + "/" + totalGames + "\t\t" + df.format(progress));
                 }
-                startingWordToAnswerToSolveCount.compute(startingWord, (k1, v1) -> {
+                startingWordToAnswerToSolveCount.compute(startingWordId, (k1, v1) -> {
                     if (v1 == null) {
                         v1 = new HashMap<>();
                     }
-                    v1.compute(answer, (k2, v2) -> {
+                    v1.compute(answerId, (k2, v2) -> {
                         if (wordleGame.isSolved()) {
                             return wordleGame.getTurns().size();
                         } else {
@@ -65,10 +65,10 @@ public class WordleMain {
         System.out.println("Games Played: " + gamesPlayed.get());
         System.out.println("Game time: " + df.format((end - start) / 1000.0));
 
-        runStats();
+        runStats(wordleData);
     }
 
-    private void runStats() {
+    private void runStats(WordleData wordleData) {
         startingWordToAnswerToSolveCount.entrySet().stream()
                 .map(x -> {
                     return new Pair<>(x.getKey(), getAverage(x.getValue()));
@@ -78,11 +78,11 @@ public class WordleMain {
                 })
                 .limit(10)
                 .forEach(x -> {
-                    System.out.println(x.getValue0() + ":\t" + x.getValue1());
+                    System.out.println(wordleData.getWord(x.getValue0()) + ":\t" + x.getValue1());
                 });
     }
 
-    private double getAverage(Map<String, Integer> input) {
+    private double getAverage(Map<?, Integer> input) {
         return input.entrySet().stream().map(x -> {
             return (long) x.getValue();
         }).reduce(0l, Long::sum) / (1.0 * input.size());

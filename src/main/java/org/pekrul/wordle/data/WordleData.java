@@ -7,35 +7,51 @@ import java.io.BufferedReader;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.InputStreamReader;
-import java.util.Collections;
-import java.util.HashSet;
-import java.util.Locale;
-import java.util.Set;
+import java.util.*;
 
 public abstract class WordleData {
 
     private String ALL_WORDS_FILE = "allowed_words.txt";
     private String ANSWER_WORDS_FILE = "possible_words.txt";
 
+    //    protected Set<String> allWords;
     @Getter
-    Set<String> allWords;
+    protected Set<Integer> allAnswers;
     @Getter
-    Set<String> allAnswers;
+    protected Map<String, Integer> allWordsToIds;
+    @Getter
+    protected Map<Integer,String> allIdsToWords;
+    //look into a BiMap? https://github.com/google/guava/wiki/NewCollectionTypesExplained#bimap
+
 
     void init() throws IOException {
-        allWords = initWordsFromFile(ALL_WORDS_FILE);
-        allAnswers = initWordsFromFile(ANSWER_WORDS_FILE);
+        allWordsToIds = initAllWords(ALL_WORDS_FILE);
+        allIdsToWords = initAllWordsReverse(allWordsToIds);
+        allAnswers = convertWordsToIds(initWordsFromFile(ANSWER_WORDS_FILE));
+
         /* Sanity Check*/
-        for (String answer : allAnswers) {
-            if (!allWords.contains(answer)) {
+        /*for (Integer answer : allAnswers) {
+            if (!allWordsToIds.containsKey(answer)) {
                 throw new RuntimeException(answer + " is not in the set of words for guessing");
             }
-        }
+        }*/
     }
 
-    public abstract Set<String> getPossibleAnswers(String guess, String resultPattern);
+    public Integer getAllWordsSize(){
+        return allIdsToWords.size();
+    }
 
-    public abstract Set<String> getPossibleAnswers(Turn previousTurn);
+    public int getAllAnswerSize(){
+        return allAnswers.size();
+    }
+
+    public abstract Set<Integer> getPossibleAnswerIds(String guess, String resultPattern);
+
+    public abstract Set<Integer> getPossibleAnswerIds(Turn previousTurn);
+
+    public String getWord(int wordId){
+        return allIdsToWords.get(wordId);
+    }
 
 
     Set<String> initWordsFromFile(String fileName) throws IOException {
@@ -52,4 +68,34 @@ public abstract class WordleData {
 
         return Collections.unmodifiableSet(words);
     }
+
+    Set<Integer> convertWordsToIds(Set<String> input){
+        Set<Integer> result = new HashSet<>(input.size());
+        input.forEach(v -> result.add(allWordsToIds.get(v)));
+        return result;
+    }
+
+    Map<String, Integer> initAllWords(String fileName) throws IOException {
+        Map<String, Integer> words = new HashMap<>();
+        ClassLoader classloader = Thread.currentThread().getContextClassLoader();
+
+        int wordId = 0;
+        try (InputStream resourceAsStream = classloader.getResourceAsStream(fileName);
+             BufferedReader reader = new BufferedReader(new InputStreamReader(resourceAsStream))) {
+            String line;
+            while ((line = reader.readLine()) != null) {
+                words.put(line.toUpperCase(Locale.ROOT), wordId);
+                wordId = wordId + 1;
+            }
+        }
+        return Collections.unmodifiableMap(words);
+    }
+
+    Map<Integer,String> initAllWordsReverse(Map<String,Integer> input){
+        Map<Integer,String> reversed = new HashMap<>(input.size());
+        input.forEach((k,v) -> reversed.put(v,k));
+        return reversed;
+    }
+
+
 }

@@ -23,11 +23,18 @@ public class WordleGame {
     @Getter
     private boolean solved;
 
-    private Set<String> possibleSolutionSet = new HashSet<>(50);
+    private Set<Integer> possibleSolutionSet = new HashSet<>(50);
 
-    public WordleGame(WordleData data, String answer, String startingWord) {
-        this.startingWord = startingWord;
-        this.answer = answer;
+//    public WordleGame(WordleData data, String answer, String startingWord) {
+//        this.startingWord = startingWord;
+//        this.answer = answer;
+//        this.data = data;
+//        turns = new ArrayList<>(MAX_TURNS);
+//    }
+
+    public WordleGame(WordleData data, Integer answer, Integer startingWord) {
+        this.startingWord = data.getWord(startingWord);
+        this.answer = data.getWord(answer);
         this.data = data;
         turns = new ArrayList<>(MAX_TURNS);
     }
@@ -59,20 +66,21 @@ public class WordleGame {
 
         /* Find the set of words that match the pattern from all previous guesses */
         if (turns.size() == 1) {
-            possibleSolutionSet.addAll(data.getPossibleAnswers(previousTurn));
+            possibleSolutionSet.addAll(data.getPossibleAnswerIds(previousTurn));
         } else {
-            possibleSolutionSet.retainAll(data.getPossibleAnswers(previousTurn));
+            possibleSolutionSet.retainAll(data.getPossibleAnswerIds(previousTurn));
         }
 
 
-        String nextGuess = possibleSolutionSet.stream().unordered()
-                .filter(word -> {
-                    if (turns.stream().anyMatch(t -> t.getTurnGuess().equals(word))) {
+        Integer nextGuessId = possibleSolutionSet.stream().unordered()
+                .filter(wordId -> {
+                    if (turns.stream().anyMatch(t -> t.getTurnGuess().equals(wordId))) {
                         return false;
                     }
                     for (Character definiteGrey : previousTurn.definiteGreyLetters) {
-                        if (word.contains("" + definiteGrey)) {
-                            if (word.equals(answer)) {
+
+                        if (data.getWord(wordId).contains("" + definiteGrey)) {
+                            if (wordId.equals(answer)) {
                                 throw new RuntimeException("Tried to filter out the answer");
                             }
                             return false;
@@ -81,7 +89,7 @@ public class WordleGame {
                     return true;
                 })
                 .findAny().get(); //Note: if I want to run through EVERY game, this would change to a Collector.Set
-        return nextGuess;
+        return data.getWord(nextGuessId);
     }
 
     @Override
