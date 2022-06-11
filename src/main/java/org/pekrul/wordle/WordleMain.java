@@ -63,8 +63,9 @@ public class WordleMain {
 
         System.out.println("Done");
         System.out.println("Games Played: " + gamesPlayed.get());
-        System.out.println("Game time: " + df.format((end - start) / 1000.0));
-
+        double secondsTotal = (end - start) / 1000.0;
+        System.out.println("Game time: " + df.format(secondsTotal));
+        System.out.println("Avg. seconds per game = " + (secondsTotal / gamesPlayed.get()));
         runStats();
     }
 

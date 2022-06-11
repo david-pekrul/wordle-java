@@ -3,10 +3,7 @@ package org.pekrul.wordle;
 import lombok.Getter;
 import org.pekrul.wordle.data.WordleData;
 
-import java.util.ArrayList;
-import java.util.HashSet;
-import java.util.List;
-import java.util.Set;
+import java.util.*;
 
 public class WordleGame {
 
@@ -19,6 +16,7 @@ public class WordleGame {
     private List<Turn> turns;
 
     private final WordleData data;
+    private int turnsPlayed;
 
     @Getter
     private boolean solved;
@@ -29,7 +27,8 @@ public class WordleGame {
         this.startingWord = startingWord;
         this.answer = answer;
         this.data = data;
-        turns = new ArrayList<>(MAX_TURNS);
+        turns = new LinkedList<>();
+        turnsPlayed = 0;
     }
 
     public void playGame() {
@@ -39,6 +38,7 @@ public class WordleGame {
             Turn nextTurn = turn.applyGuess(nextGuess());
 
             turns.add(nextTurn);
+            turnsPlayed++;
 
             if (nextTurn.getTurnGuess().equals(nextTurn.getAnswer())) {
                 solved = true;
@@ -51,37 +51,36 @@ public class WordleGame {
 
 
     private String nextGuess() {
-        if (turns.isEmpty()) {
+        if (turnsPlayed == 0) {
             return startingWord;
         }
 
-        Turn previousTurn = turns.get(turns.size() - 1);
+        Turn previousTurn = turns.get(turnsPlayed - 1);
 
         /* Find the set of words that match the pattern from all previous guesses */
-        if (turns.size() == 1) {
+        if (turnsPlayed == 1) {
             possibleSolutionSet.addAll(data.getPossibleAnswers(previousTurn));
         } else {
             possibleSolutionSet.retainAll(data.getPossibleAnswers(previousTurn));
         }
 
+        possibleSolutionSet.remove(previousTurn.getTurnGuess());
 
-        String nextGuess = possibleSolutionSet.stream().unordered()
-                .filter(word -> {
-                    if (turns.stream().anyMatch(t -> t.getTurnGuess().equals(word))) {
-                        return false;
-                    }
-                    for (Character definiteGrey : previousTurn.definiteGreyLetters) {
-                        if (word.contains("" + definiteGrey)) {
-                            if (word.equals(answer)) {
-                                throw new RuntimeException("Tried to filter out the answer");
-                            }
-                            return false;
-                        }
+        possibleSolutionSet.removeIf(word -> {
+            for (Character definiteGrey : previousTurn.definiteGreyLetters) {
+                if (word.contains("" + definiteGrey)) {
+                    if (word.equals(answer)) {
+                        throw new RuntimeException("Tried to filter out the answer");
                     }
                     return true;
-                })
-                .findAny().get(); //Note: if I want to run through EVERY game, this would change to a Collector.Set
-        return nextGuess;
+                }
+            }
+            return false;
+        });
+
+        //Note: if I want to run through EVERY game, this would change to a Collector.Set
+        //and then order them by some metric (entropy?)
+        return possibleSolutionSet.stream().findAny().get();
     }
 
     @Override
