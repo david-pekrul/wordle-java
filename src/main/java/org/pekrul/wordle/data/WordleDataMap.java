@@ -33,6 +33,8 @@ public class WordleDataMap extends WordleData {
 
     private WordleDataMap() throws IOException {
         super.init();
+        wordFreq = wordFrequencyInEnglish(WORD_FREQ_FILE);
+        removeInfrequentWords();
         initMapLookups();
         System.out.println("WorldeData init done");
     }
@@ -43,14 +45,17 @@ public class WordleDataMap extends WordleData {
         mapGuessLookup = new HashMap<>(allWords.size());
         allWords.stream().parallel().forEach(guess -> {
             Map<String, Set<String>> resultToAnswersPerGuess = new HashMap<>();
-            allAnswers.stream().forEach(answer -> {
-                Turn turn = new Turn(answer);
+            /*
+             * Doing allAnswers here then causes each game to then have only valid answers for all but the first guess.
+             */
+            allWords.stream().forEach(secondWord -> {
+                Turn turn = new Turn(secondWord);
                 Turn generatedTurn = turn.applyGuess(guess);
                 resultToAnswersPerGuess.compute(generatedTurn.getResultString(), (k, v) -> {
                     if (v == null) {
                         v = new HashSet<>();
                     }
-                    v.add(answer);
+                    v.add(secondWord);
                     return v;
                 });
             });
@@ -68,4 +73,6 @@ public class WordleDataMap extends WordleData {
         });
         mapGuessLookup = Collections.unmodifiableMap(mapGuessLookup);
     }
+
+
 }

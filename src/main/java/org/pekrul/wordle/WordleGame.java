@@ -78,6 +78,16 @@ public class WordleGame {
             return false;
         });
 
+        /*
+            Of the remaining words in the possibleSolutionSet, we have a choice on which one to pick, but with tradeoffs.
+            Option 1: word -> most selective of the words that remain.
+                Which word, if we guessed it, would create the smallest average remaining set?
+                Word -> Every other word -> group by result string -> count(size) -> average over # of groups
+                This potentially sacrifices the winning word for the most selective word. But how often?
+            Option 2: word -> most common word in the english language?
+         */
+
+
         //Note: if I want to run through EVERY game, this would change to a Collector.Set
         //and then order them by some metric (entropy?)
         return possibleSolutionSet.stream().findAny().get();
